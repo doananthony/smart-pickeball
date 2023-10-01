@@ -28,6 +28,10 @@ void setup() {
   BLE.addService(sensorService);
   BLE.advertise();
 
+  // Print the Bluetooth MAC address
+  Serial.print("Arduino BLE Address: ");
+  Serial.println(BLE.address());
+  
   Serial.println("Waiting for connections...");
 }
 
