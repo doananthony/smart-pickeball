@@ -2,29 +2,38 @@ import asyncio
 import struct
 from bleak import BleakClient
 
-# Gyroscope Characteristic UUID
-GYRO_CHARACTERISTIC_UUID = "19B10001-E8F2-537E-4F6C-D104768A1214"
-# Accelerometer Characteristic UUID
-ACCEL_CHARACTERISTIC_UUID = "19B10002-E8F2-537E-4F6C-D104768A1214"
+# Define the Arduino BLE device address (replace with your device's address)
+arduino_ble_address = "1D016F86-06D3-D42A-DF14-9F5D7DD4F912"
+sensor_data_characteristic_uuid = "19B10001-E8F2-537E-4F6C-D104768A1214"
 
-async def connect_and_read_ble_data(device_address):
-    while True:
-        async with BleakClient(device_address) as client:
-            # Read gyroscope data
-            gyro_data_bytes = await client.read_gatt_char(GYRO_CHARACTERISTIC_UUID)
-            gyro_data = struct.unpack('f', gyro_data_bytes)[0]
-            print("Gyroscope Data:", gyro_data)
+def handle_sensor_data(sender,data):
+    # Unpack the received data as an array of floats (10 floats, 40 bytes)
+    sensor_data = struct.unpack('10f', data)
+    print(sensor_data)
+    # for i in range(0, len(sensor_data)):
+    #     print(i)
+    #     gyro_x = sensor_data[i]
+    #     gyro_y = sensor_data[i+1]
+    #     gyro_z = sensor_data[i+2] 
+    #     accel_x = sensor_data[i+3]
+    #     accel_y = sensor_data[i+4]
+    #     # accel_z = sensor_data[i+5]
+    #     print(f"Gyro: X={gyro_x}, Y={gyro_y}, Z={gyro_z}, Accel: X={accel_x}, Y={accel_y}")
 
-            # Read accelerometer data
-            accel_data_bytes = await client.read_gatt_char(ACCEL_CHARACTERISTIC_UUID)
-            accel_data = struct.unpack('f', accel_data_bytes)[0]
-            print("Accelerometer Data:", accel_data)
+async def connect_ble_device(address):
+    async with BleakClient(address) as client:
+        print(f"Connected: {client.is_connected}")
 
-            await asyncio.sleep(0.1)  # Sleep for 100ms (adjust as needed)
+        # Enable notifications for the sensor data characteristic
+        await client.start_notify(sensor_data_characteristic_uuid, handle_sensor_data)
 
-# Replace 'device_address' with the address of your Arduino BLE device
-device_address = ""  # Replace with the actual device address - look at BluetoothDeviceDiscover.py to get addresses if needed
+        print("Waiting for sensor data...")
 
-# Run the event loop
-loop = asyncio.get_event_loop()
-loop.run_until_complete(connect_and_read_ble_data(device_address))
+        # Keep the script running
+        while True:
+            await asyncio.sleep(1)
+
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(connect_ble_device(arduino_ble_address))
+    loop.run_forever()

@@ -1,10 +1,8 @@
 #include <Arduino_LSM6DS3.h>
 #include <ArduinoBLE.h>
 
-// Set up UUID to connect via Bluetooth Low Energy
 BLEService sensorService("19B10000-E8F2-537E-4F6C-D104768A1214");
-BLEFloatCharacteristic gyroCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
-BLEFloatCharacteristic accelCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify);
+BLECharacteristic sensorDataCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLENotify, 40); // 40 bytes for 10 floats
 
 void setup() {
   Serial.begin(9600);
@@ -15,7 +13,6 @@ void setup() {
     while (1);
   }
 
-  // Start BLE
   if (!BLE.begin()) {
     Serial.println("Failed to initialize BLE!");
     while (1);
@@ -23,15 +20,13 @@ void setup() {
 
   BLE.setLocalName("SensorData");
   BLE.setAdvertisedService(sensorService);
-  sensorService.addCharacteristic(gyroCharacteristic);
-  sensorService.addCharacteristic(accelCharacteristic);
+  sensorService.addCharacteristic(sensorDataCharacteristic);
   BLE.addService(sensorService);
   BLE.advertise();
 
-  // Print the Bluetooth MAC address
   Serial.print("Arduino BLE Address: ");
   Serial.println(BLE.address());
-  
+
   Serial.println("Waiting for connections...");
 }
 
@@ -43,36 +38,30 @@ void loop() {
     Serial.println(central.address());
 
     while (central.connected()) {
-      float gyroX, gyroY, gyroZ, accelX, accelY, accelZ;
+      float sensorData[20]; // 10 for gyro, 10 for accel
+      uint8_t buffer[120]; // Buffer to hold 20 floats (120 bytes)
 
-      if (IMU.gyroscopeAvailable() && IMU.accelerationAvailable()) {
-        IMU.readGyroscope(gyroX, gyroY, gyroZ);
-        IMU.readAcceleration(accelX, accelY, accelZ);
-
-        // Update BLE characteristics
-        gyroCharacteristic.writeValue(gyroX);
-        gyroCharacteristic.writeValue(gyroY);
-        gyroCharacteristic.writeValue(gyroZ);
-        accelCharacteristic.writeValue(accelX);
-        accelCharacteristic.writeValue(accelY);
-        accelCharacteristic.writeValue(accelZ);
-
-        // Print data to Serial Monitor
-        Serial.print("Gyro: ");
-        Serial.print(gyroX);
-        Serial.print('\t');
-        Serial.print(gyroY);
-        Serial.print('\t');
-        Serial.print(gyroZ);
-        Serial.print("\tAccel: ");
-        Serial.print(accelX);
-        Serial.print('\t');
-        Serial.print(accelY);
-        Serial.print('\t');
-        Serial.println(accelZ);
+      // Collect 10 readings of gyroscope
+      for (int i = 0; i < 10; ++i) {
+        if (IMU.gyroscopeAvailable()) {
+          IMU.readGyroscope(sensorData[i * 2], sensorData[i * 2 + 1], sensorData[i * 2 + 2]);
+        }
+        delay(100); 
       }
 
-      delay(1000); // Adjust the delay time as needed
+      // Collect 10 readings of accelerometer
+      for (int i = 0; i < 10; ++i) {
+        if (IMU.accelerationAvailable()) {
+          IMU.readAcceleration(sensorData[i * 2 + 10], sensorData[i * 2 + 11], sensorData[i * 2 + 12]);
+        }
+        delay(100); 
+      }
+
+      // Pack sensor data into the buffer
+      memcpy(buffer, sensorData, sizeof(buffer));
+
+      // Send the sensor data buffer
+      sensorDataCharacteristic.writeValue(buffer, sizeof(buffer));
     }
 
     Serial.print("Disconnected from central: ");
