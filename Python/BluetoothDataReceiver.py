@@ -3,10 +3,8 @@ import struct
 import matplotlib.pyplot as plt
 from bleak import BleakClient
 
-# Gyroscope Characteristic UUID
+# Accelerometer and Gyroscope Characteristic UUID
 SENSOR_CHARACTERISTIC_UUID = "19B10001-E8F2-537E-4F6C-D104768A1214"
-# Accelerometer Characteristic UUID
-# ACCEL_CHARACTERISTIC_UUID = "19B10001-E8F2-537E-4F6C-D104768A1214"
 
 # Lists to store data for plotting
 gyro_data = [[], [], []]
@@ -28,13 +26,15 @@ def handle_sensor_data(sender, data):
     accel_data[1].append(accel_y)
     accel_data[2].append(accel_z)
 
-    # Update the plot
+    # Update the plot for Gyroscope and Accelerometer
     plt.clf()
     plt.subplot(2, 1, 1)
     plt.plot(gyro_data[0], label='X')
     plt.plot(gyro_data[1], label='Y')
     plt.plot(gyro_data[2], label='Z')
     plt.title('Gyroscope Data')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Angular Rate (rad/s)')
     plt.legend()
 
     plt.subplot(2, 1, 2)
@@ -42,6 +42,8 @@ def handle_sensor_data(sender, data):
     plt.plot(accel_data[1], label='Y')
     plt.plot(accel_data[2], label='Z')
     plt.title('Accelerometer Data')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Acceleration (m/s^2)')
     plt.legend()
     plt.pause(0.1)
 
@@ -51,9 +53,6 @@ async def connect_and_read_ble_data(device_address):
 
         # Enable notifications for the sensor characteristic
         await client.start_notify(SENSOR_CHARACTERISTIC_UUID, handle_sensor_data)
-
-        # # Enable notifications for the accelerometer characteristic
-        # await client.start_notify(ACCEL_CHARACTERISTIC_UUID, handle_sensor_data)
 
         print("Waiting for sensor data...")
 
