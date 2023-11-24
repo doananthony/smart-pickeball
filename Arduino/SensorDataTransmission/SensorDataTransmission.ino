@@ -2,7 +2,7 @@
 #include <ArduinoBLE.h>
 
 BLEService sensorService("19B10000-E8F2-537E-4F6C-D104768A1214");
-BLECharacteristic sensorDataCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLENotify, 40); // 40 bytes for 10 floats
+BLECharacteristic sensorDataCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLENotify, 24); // 24 bytes for 6 floats
 
 void setup() {
   Serial.begin(9600);
@@ -38,30 +38,27 @@ void loop() {
     Serial.println(central.address());
 
     while (central.connected()) {
-      float sensorData[20]; // 10 for gyro, 10 for accel
-      uint8_t buffer[120]; // Buffer to hold 20 floats (120 bytes)
+      float gyroX, gyroY, gyroZ, accelX, accelY, accelZ;
 
-      // Collect 10 readings of gyroscope
-      for (int i = 0; i < 10; ++i) {
-        if (IMU.gyroscopeAvailable()) {
-          IMU.readGyroscope(sensorData[i * 2], sensorData[i * 2 + 1], sensorData[i * 2 + 2]);
-        }
-        delay(100); 
+      if (IMU.gyroscopeAvailable() && IMU.accelerationAvailable()) {
+        IMU.readGyroscope(gyroX, gyroY, gyroZ);
+        IMU.readAcceleration(accelX, accelY, accelZ);
+
+        // Pack sensor data into the buffer
+        uint8_t buffer[24];
+        memcpy(buffer, &gyroX, sizeof(gyroX));
+        memcpy(buffer + sizeof(gyroX), &gyroY, sizeof(gyroY));
+        memcpy(buffer + sizeof(gyroX) + sizeof(gyroY), &gyroZ, sizeof(gyroZ));
+        memcpy(buffer + sizeof(gyroX) + sizeof(gyroY) + sizeof(gyroZ), &accelX, sizeof(accelX));
+        memcpy(buffer + sizeof(gyroX) + sizeof(gyroY) + sizeof(gyroZ) + sizeof(accelX), &accelY, sizeof(accelY));
+        memcpy(buffer + sizeof(gyroX) + sizeof(gyroY) + sizeof(gyroZ) + sizeof(accelX) + sizeof(accelY), &accelZ, sizeof(accelZ));
+
+        // Send the sensor data buffer
+        sensorDataCharacteristic.writeValue(buffer, sizeof(buffer));
+
       }
 
-      // Collect 10 readings of accelerometer
-      for (int i = 0; i < 10; ++i) {
-        if (IMU.accelerationAvailable()) {
-          IMU.readAcceleration(sensorData[i * 2 + 10], sensorData[i * 2 + 11], sensorData[i * 2 + 12]);
-        }
-        delay(100); 
-      }
-
-      // Pack sensor data into the buffer
-      memcpy(buffer, sensorData, sizeof(buffer));
-
-      // Send the sensor data buffer
-      sensorDataCharacteristic.writeValue(buffer, sizeof(buffer));
+      delay(1000); // Adjust the delay time as needed
     }
 
     Serial.print("Disconnected from central: ");
