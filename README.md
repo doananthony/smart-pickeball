@@ -1,4 +1,4 @@
-# smart-pickeball
+# smart-pickleball
 IoT Project for a smart pickle ball paddle that contains the Arduino code to stream Gyroscope and Accelerometer sensor data from the Arduino Nano 33 IoT and the Python client to receive the data and plot it. 
 
 ## Repository
